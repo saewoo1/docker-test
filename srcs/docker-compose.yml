@@ -1,0 +1,77 @@
+version: '3'
+
+services:
+  nginx:
+    container_name: nginx
+    # 컨테이너 이름
+    image: nginx
+    # 이미지 이름
+    pull_policy: never
+    # 이미지를 가져오는 경로
+    build: ./requirements/nginx
+    # 이미지 빌드 시 참조할 도커파일의 경로
+    ports:
+      - '443:443'
+    # 호스트 포트 : 컨테이너 포트
+    networks:
+      - inception
+    # 컨테이너가 속할 네트워크 명시
+    volumes:
+      - wp-volume:/var/www/
+    # 볼륨폴더명 : 컨테이너 내 경로. 이제 컨테이너 재구동 시에도 데이터가 유지된다.
+    restart: always
+    # 컨테이너 재구동 시에도 재시작
+
+  mariadb:
+    container_name: mariadb
+    image: mariadb
+    pull_policy: never
+    build: ./requirements/mariadb
+    env_file:
+      - .env
+    # .env 파일을 참조하여 환경변수를 설정한다.
+    networks:
+      - inception
+    volumes:
+      - db-volume:/var/lib/mysql
+    restart: always
+    
+  wordpress:
+    container_name: wordpress
+    image: wordpress
+    pull_policy: never
+    build: ./requirements/wordpress
+    depends_on:
+      - mariadb
+    env_file:
+      - .env
+    networks:
+      - inception
+    volumes:
+      - wp-volume:/var/www/html
+    restart: always
+
+# 어떤 볼륨을 관리할 지 명시 !
+volumes:
+  db-volume:
+    driver: local
+    # 사용할 볼륨 드라이버 종류 지정 ex. nfs는 원격 네트워크 볼륨
+    driver_opts:
+      device: /Users/parksohyun/data/db-data
+      # 로컬 볼륨이 호스트 시스템에서 사용할 경로 명시
+      type: none
+      # 볼륨 유형. 로컬은 따로 없다.
+      o: bind
+  # 추가 옵션. 컨테이너 볼륨을 호스트 볼륨과 bind (동기화) 한다.
+  wp-volume:
+    driver: local
+    driver_opts:
+      device: /Users/parksohyun/data/wp-data
+      type: none
+      o: bind
+
+networks:
+  inception:
+    driver: bridge
+# bridge는 하나의 호스트 내에서 여러 컨테이너들이 소통하기 위한 것.
+# 다른 network의 종류로 host, overlay 등이 있다.
